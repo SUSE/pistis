@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"log/slog"
 	"os"
+	"strings"
 
-//	"github.com/hairyhenderson/go-codeowners"
+	"github.com/hairyhenderson/go-codeowners"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -35,9 +37,30 @@ func main() {
 	logic()
 }
 
+func getCodeOwnerFingerprints(coFpPath string) map[string]string {
+	coFpFile, err := os.Open(coFpPath)
+	handleError("Reading fingerprints file", err)
+	defer coFpFile.Close()
+	coFpScanner := bufio.NewScanner(coFpFile)
+
+	coFpMap := make(map[string]string)
+
+	for coFpScanner.Scan () {
+		coFpParts := strings.Split(coFpScanner.Text(), " ")
+		coFpMap[coFpParts[0]] = coFpParts[1]
+	}
+
+	return coFpMap
+}
+
 func logic() {
 	repository, err := git.PlainOpen(directory)
 	handleError("Opening repository", err)
+
+	co, err := codeowners.FromFile(directory)
+	handleError("Reading CODEOWNERS", err)
+
+	coFpMap := getCodeOwnerFingerprints(directory + "/CODEOWNERS_FINGERPRINTS")
 
 	ref, err := repository.Head()
 	handleError("Reading HEAD", err)
@@ -69,6 +92,15 @@ func logic() {
 
 			for _, file := range changedFiles {
 				Info(file)
+				owners := co.Owners(file)
+				for i, owner := range owners {
+					ownerFp, haveOwnerFp := coFpMap[owner]
+					if haveOwnerFp {
+						Info("Owner #%d is %s with fingerprint %s", i, owner, ownerFp)
+					} else {
+						Info("Owner #%d is %s with no fingerprint", i, owner)
+					}
+				}
 			}
 
 			//changes, err := tree.Diff(previousTree)

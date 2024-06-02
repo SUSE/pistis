@@ -2,7 +2,10 @@ module github.com/SUSE/pistis
 
 go 1.21.10
 
-require github.com/go-git/go-git/v5 v5.12.0
+require (
+	github.com/go-git/go-git/v5 v5.12.0
+	github.com/hairyhenderson/go-codeowners v0.4.0
+)
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
