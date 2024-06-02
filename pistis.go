@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"flag"
 	"log/slog"
 	"os"
@@ -74,7 +75,11 @@ func logic() {
 	var previousTree *object.Tree
 
 	err = history.ForEach(func(commit *object.Commit) error {
-		Info("%s", commit.Hash)
+		Info("Reading commit %s", commit.Hash)
+
+		pgpObj, verifyErr := commit.Verify(keyring)
+		handleError("Verifying commit", verifyErr)
+		cFp := hex.EncodeToString(pgpObj.PrimaryKey.Fingerprint[:])
 
 		tree, err := commit.Tree()
 		handleError("Reading commit tree", err)
@@ -95,10 +100,23 @@ func logic() {
 				owners := co.Owners(file)
 				for i, owner := range owners {
 					ownerFp, haveOwnerFp := coFpMap[owner]
+					foundValidOwner := false
 					if haveOwnerFp {
 						Info("Owner #%d is %s with fingerprint %s", i, owner, ownerFp)
+						Info("Commit is signed by fingerprint %s", cFp)
+						if cFp == ownerFp {
+							Info("Matches")
+							foundValidOwner = true
+						}
+
 					} else {
-						Info("Owner #%d is %s with no fingerprint", i, owner)
+						// all CODEOWNERS must have an associated fingerprint
+						Error("Owner #%d is %s with no fingerprint", i, owner)
+						os.Exit(1)
+					}
+					if !foundValidOwner {
+						Error("File is covered by CODEOWNERS, but commit modifying it was not signed by a valid owner.")
+						os.Exit(1)
 					}
 				}
 			}
@@ -116,8 +134,6 @@ func logic() {
 			//}
 		}
 
-		_, verifyErr := commit.Verify(keyring)
-		handleError("Verifying commit", verifyErr)
 
 		previousTree = tree
 
