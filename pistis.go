@@ -54,6 +54,21 @@ func getCodeOwnerFingerprints(coFpPath string) map[string]string {
 	return coFpMap
 }
 
+func getExclusions(exclPath string) []string {
+	exclFile, err := os.Open(exclPath)
+	handleError("Reading exclusion file", err)
+	defer exclFile.Close()
+	exclScanner := bufio.NewScanner(exclFile)
+
+	exclusions := make([]string, 0)
+
+	for exclScanner.Scan () {
+		exclusions = append(exclusions, exclScanner.Text())
+	}
+
+	return exclusions
+}
+
 func logic() {
 	repository, err := git.PlainOpen(directory)
 	handleError("Opening repository", err)
@@ -62,6 +77,8 @@ func logic() {
 	handleError("Reading CODEOWNERS", err)
 
 	coFpMap := getCodeOwnerFingerprints(directory + "/CODEOWNERS_FINGERPRINTS")
+
+	exclusions := getExclusions(directory + "/UNTRUSTED_COMMITS")
 
 	ref, err := repository.Head()
 	handleError("Reading HEAD", err)
@@ -75,7 +92,14 @@ func logic() {
 	var previousTree *object.Tree
 
 	err = history.ForEach(func(commit *object.Commit) error {
-		Info("Reading commit %s", commit.Hash)
+		hash := commit.Hash
+
+		if contains(exclusions, hash.String()) {
+			Info("Skipping commit %s", hash)
+			return nil
+		}
+
+		Info("Reading commit %s", hash)
 
 		pgpObj, verifyErr := commit.Verify(keyring)
 		handleError("Verifying commit", verifyErr)

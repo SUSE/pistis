@@ -52,3 +52,13 @@ func getChangeName(change *object.Change) string {
 
 	return change.To.Name
 }
+
+func contains(values []string, value string) bool {
+	for _, entry := range values {
+		if entry == value {
+			return true
+		}
+	}
+
+	return false
+}

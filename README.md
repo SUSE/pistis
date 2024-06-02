@@ -38,10 +38,11 @@ gpg --export --armor -o /tmp/ring
 
 Ideally, this should be a clean key ring. If run under a user account already having other keys imported, consider the `--keyring` argument with `gpg`.
 
+Commit hashes which should not be validated can be listed in a `UNTRUSTED_COMMITS` file in the repository root - one hash per line.
+
 ## TODO
 
 - Move to GitHub
 - Change noisy messages to Debug()
-- Commit exclusion file
 - Verify signatures
 - Generate keyring by reading users from GitLab
