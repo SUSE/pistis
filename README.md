@@ -38,6 +38,14 @@ gpg --export --armor -o /tmp/ring
 
 Ideally, this should be a clean key ring. If run under a user account already having other keys imported, consider the `--keyring` argument with `gpg`.
 
+Alternatively to specifying an existing keyring using `--keyring`, a keyring can be built from PGP keys associated with users on a GitLab server.
+For this, specify `--gitlab https://gitlab.example.com` instead, and maintain a file `CODEOWNERS_USERNAMES` in the repository root, mapping email addresses to GitLab usernames:
+
+```
+georg.pfuetzenreuter@suse.com crameleon
+cat@example.com kitty
+```
+
 Commit hashes which should not be validated can be listed in a `UNTRUSTED_COMMITS` file in the repository root - one hash per line.
 
 ## TODO
@@ -45,4 +53,4 @@ Commit hashes which should not be validated can be listed in a `UNTRUSTED_COMMIT
 - Move to GitHub
 - Change noisy messages to Debug()
 - Verify signatures
-- Generate keyring by reading users from GitLab
+- Consolidate CODEOWNERS_FINGERPRINTS and CODEOWNERS_USERNAMES into a single YAML file?

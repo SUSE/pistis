@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 
@@ -12,7 +14,8 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
-//	"github.com/go-git/go-git/v5/utils/merkletrie"
+
+	"github.com/ProtonMail/gopenpgp/v2/crypto"
 )
 
 var (
@@ -22,18 +25,27 @@ var (
 )
 
 func main() {
+	var gitlab string
 	var keyringFile string
 	var logLevelStr string
 
-	flag.StringVar(&keyringFile, "keyring", "", "Path to file containing an armored keyring")
 	flag.StringVar(&directory, "repository", ".", "Path to the Git repository")
+	flag.StringVar(&gitlab, "gitlab", "", "URL to a GitLab instance for building the PGP keyring")
+	flag.StringVar(&keyringFile, "keyring", "", "Alternatively, path to file containing an existing armored keyring")
 	flag.StringVar(&logLevelStr, "loglevel", "info", "Logging level")
 
 	flag.Parse()
 
 	logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: convertLogLevel(logLevelStr)}))
 
-	keyring = fileToStr(keyringFile)
+	if keyringFile == "" && gitlab != "" {
+		keyring = buildKeyring(directory + "/CODEOWNERS_USERNAMES", gitlab)
+	} else if keyringFile != "" && gitlab == "" {
+		keyring = fileToStr(keyringFile)
+	} else {
+		Error("Specify -gitlab OR -keyring.")
+		os.Exit(1)
+	}
 
 	logic()
 }
@@ -54,6 +66,22 @@ func getCodeOwnerFingerprints(coFpPath string) map[string]string {
 	return coFpMap
 }
 
+func getCodeOwnerUsernames(coUserPath string) map[string]string {
+	coUserFile, err := os.Open(coUserPath)
+	handleError("Reading users file", err)
+	defer coUserFile.Close()
+	coUserScanner := bufio.NewScanner(coUserFile)
+
+	coUserMap := make(map[string]string)
+
+	for coUserScanner.Scan () {
+		coUserParts := strings.Split(coUserScanner.Text(), " ")
+		coUserMap[coUserParts[0]] = coUserParts[1]
+	}
+
+	return coUserMap
+}
+
 func getExclusions(exclPath string) []string {
 	exclFile, err := os.Open(exclPath)
 	handleError("Reading exclusion file", err)
@@ -67,6 +95,30 @@ func getExclusions(exclPath string) []string {
 	}
 
 	return exclusions
+}
+
+func buildKeyring(coUserPath string, gitlab string) string {
+	ring, err := crypto.NewKeyRing(nil)
+	handleError("Creating keyring", err)
+
+	for email, username := range getCodeOwnerUsernames(coUserPath) {
+		response, err := http.Get(fmt.Sprintf("%s/%s.gpg", gitlab, username))
+		msg := fmt.Sprintf(" for %s (%s)", email, username)
+		handleError("Reading key" + msg, err)
+		defer response.Body.Close()
+		handleError("Reading response" + msg, err)
+		// TODO: validate response ?
+		key, err := crypto.NewKeyFromArmoredReader(response.Body)
+		handleError("Constructing key" + msg, err)
+		handleError("Adding key" + msg, ring.AddKey(key))
+	}
+
+	armoredRing, err := ring.Armor()
+	handleError("Encoding ring", err)
+
+	Info(armoredRing)
+
+	return armoredRing
 }
 
 func logic() {
