@@ -40,4 +40,4 @@ require (
 )
 
 // pending https://github.com/ProtonMail/gopenpgp/pull/281
-replace github.com/ProtonMail/gopenpgp/v2 v2.7.5 => ../gopenpgp
+replace github.com/ProtonMail/gopenpgp/v2 v2.7.5 => github.com/tacerus/gopenpgp/v2 v2.1.8-tacerus
