@@ -77,4 +77,4 @@ pistis --repository ~/Work/git/salt-crameleon/ --gitlab https://gitlab.example.c
 - Change noisy messages to Debug()
 - Verify signatures
 - Consolidate `CODEOWNERS_FINGERPRINTS` and `CODEOWNERS_USERNAMES` into a single YAML file?
-- Tests
+- Tests for main logic
