@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 )
@@ -147,8 +148,8 @@ func logic() {
 		hash := commit.Hash
 
 		if contains(exclusions, hash.String()) {
-			Info("Skipping commit %s", hash)
-			return nil
+			Info("Returning early at commit %s", hash)
+			return storer.ErrStop
 		}
 
 		Info("Reading commit %s", hash)
