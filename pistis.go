@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	keyring string
+	keyring   string
 	directory string
-	logger *slog.Logger
+	logger    *slog.Logger
 )
 
 func main() {
@@ -40,7 +40,7 @@ func main() {
 	logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: convertLogLevel(logLevelStr)}))
 
 	if keyringFile == "" && gitlab != "" {
-		keyring = buildKeyring(directory + "/CODEOWNERS_USERNAMES", gitlab)
+		keyring = buildKeyring(directory+"/CODEOWNERS_USERNAMES", gitlab)
 	} else if keyringFile != "" && gitlab == "" {
 		keyring = fileToStr(keyringFile)
 	} else {
@@ -59,7 +59,7 @@ func getCodeOwnerFingerprints(coFpPath string) map[string]string {
 
 	coFpMap := make(map[string]string)
 
-	for coFpScanner.Scan () {
+	for coFpScanner.Scan() {
 		coFpParts := strings.Split(coFpScanner.Text(), " ")
 		coFpMap[coFpParts[0]] = coFpParts[1]
 	}
@@ -75,7 +75,7 @@ func getCodeOwnerUsernames(coUserPath string) map[string]string {
 
 	coUserMap := make(map[string]string)
 
-	for coUserScanner.Scan () {
+	for coUserScanner.Scan() {
 		coUserParts := strings.Split(coUserScanner.Text(), " ")
 		coUserMap[coUserParts[0]] = coUserParts[1]
 	}
@@ -91,7 +91,7 @@ func getExclusions(exclPath string) []string {
 
 	exclusions := make([]string, 0)
 
-	for exclScanner.Scan () {
+	for exclScanner.Scan() {
 		exclusions = append(exclusions, exclScanner.Text())
 	}
 
@@ -105,13 +105,13 @@ func buildKeyring(coUserPath string, gitlab string) string {
 	for email, username := range getCodeOwnerUsernames(coUserPath) {
 		response, err := http.Get(fmt.Sprintf("%s/%s.gpg", gitlab, username))
 		msg := fmt.Sprintf(" for %s (%s)", email, username)
-		handleError("Reading key" + msg, err)
+		handleError("Reading key"+msg, err)
 		defer response.Body.Close()
-		handleError("Reading response" + msg, err)
+		handleError("Reading response"+msg, err)
 		// TODO: validate response ?
 		key, err := crypto.NewKeyFromArmoredReader(response.Body)
-		handleError("Constructing key" + msg, err)
-		handleError("Adding key" + msg, ring.AddKey(key))
+		handleError("Constructing key"+msg, err)
+		handleError("Adding key"+msg, ring.AddKey(key))
 	}
 
 	armoredRing, err := ring.Armor()
@@ -167,7 +167,7 @@ func logic() {
 			var changedFiles []string
 
 			for _, fileStat := range patch.Stats() {
-				changedFiles = append(changedFiles,fileStat.Name)
+				changedFiles = append(changedFiles, fileStat.Name)
 			}
 
 			for _, file := range changedFiles {
@@ -196,7 +196,6 @@ func logic() {
 				}
 			}
 		}
-
 
 		previousTree = tree
 
