@@ -129,7 +129,7 @@ func logic() {
 
 	coFpMap := getCodeOwnerFingerprints(directory + "/CODEOWNERS_FINGERPRINTS")
 
-	exclusions := getExclusions(directory + "/UNTRUSTED_COMMITS")
+	exclusions := getExclusions(directory + "/TRUSTED_COMMITS")
 
 	ref, err := repository.Head()
 	handleError("Reading HEAD", err)
