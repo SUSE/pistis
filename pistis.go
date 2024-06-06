@@ -117,8 +117,6 @@ func buildKeyring(coUserPath string, gitlab string) string {
 	armoredRing, err := ring.Armor()
 	handleError("Encoding ring", err)
 
-	Info(armoredRing)
-
 	return armoredRing
 }
 
@@ -197,18 +195,6 @@ func logic() {
 					}
 				}
 			}
-
-			//changes, err := tree.Diff(previousTree)
-			//handleError("Reading diff", err)
-
-			//for _, change := range changes {
-			//	action, err := change.Action()
-			//	handleError("Reading action", err)
-			//	if action != merkletrie.Delete {
-			//		name := getChangeName(change)
-			//		Info(name)
-			//	}
-			//}
 		}
 
 
