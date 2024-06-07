@@ -1,6 +1,6 @@
 # Pistis
 
-Verifies the commits in a Git repository before deploying the directory.
+Verifies the commits in a Git repository.
 
 ## Usage
 
@@ -8,7 +8,7 @@ In a given repository, a [CODEOWNERS](https://docs.github.com/en/repositories/ma
 Along with the standardized `CODEOWNERS` file, a custom `CODEOWNERS_FINGERPRINTS` file must be present, containing the fingerprints for every email address contained in `CODEOWNERS`.
 Both files are expected to be located at the repository root.
 
-Commit hashes which should not be validated can be listed in a `UNTRUSTED_COMMITS` file in the repository root - one hash per line.
+Commit hashes which should not be validated can be listed in a `TRUSTED_COMMITS` file in the repository root - one hash per line.
 
 ### Keyring
 
@@ -52,7 +52,7 @@ georg.pfuetzenreuter@suse.com crameleon
 cat@example.com kitty
 ```
 
-### Example `UNTRUSTED_COMMITS`
+### Example `TRUSTED_COMMITS`
 
 ```
 5ea8af38993138b5164451434b453ad9fd3993bd
@@ -73,7 +73,6 @@ pistis --repository ~/Work/git/salt-crameleon/ --gitlab https://gitlab.example.c
 
 ## TODO
 
-- Move to GitHub
 - Change noisy messages to Debug()
 - Verify signatures
 - Consolidate `CODEOWNERS_FINGERPRINTS` and `CODEOWNERS_USERNAMES` into a single YAML file?
