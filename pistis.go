@@ -171,6 +171,10 @@ func logic() {
 		Info("Reading commit %s", hash)
 
 		pgpObj, verifyErr := commit.Verify(keyring)
+		if verifyErr != nil && verifyErr.Error() == "EOF" {
+			Error("Commit is not signed.")
+			os.Exit(1)
+		}
 		handleError("Verifying commit", verifyErr)
 		cFp := hex.EncodeToString(pgpObj.PrimaryKey.Fingerprint[:])
 
