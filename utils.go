@@ -45,6 +45,10 @@ func Error(format string, args ...any) {
 	logger.Error(fmt.Sprintf(format, args...))
 }
 
+func Debug(format string, args ...any) {
+	logger.Debug(fmt.Sprintf(format, args...))
+}
+
 func Info(format string, args ...any) {
 	logger.Info(fmt.Sprintf(format, args...))
 }
