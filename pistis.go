@@ -38,9 +38,10 @@ import (
 )
 
 var (
-	keyring   string
-	directory string
-	logger    *slog.Logger
+	keyring            string
+	directory          string
+	logger             *slog.Logger
+	featureIgnoreMerge bool
 )
 
 func main() {
@@ -48,6 +49,7 @@ func main() {
 	var keyringFile string
 	var logLevelStr string
 
+	flag.BoolVar(&featureIgnoreMerge, "ignore-merge", false, "Do not try to validate merge commits")
 	flag.StringVar(&directory, "repository", ".", "Path to the Git repository")
 	flag.StringVar(&gitlab, "gitlab", "", "URL to a GitLab instance for building the PGP keyring")
 	flag.StringVar(&keyringFile, "keyring", "", "Alternatively, path to file containing an existing armored keyring")
@@ -155,12 +157,16 @@ func logic() {
 	head := ref.Hash()
 	Info("Head is at %s", head)
 
-	history, err := repository.Log(&git.LogOptions{From: ref.Hash()})
+	history, err := repository.Log(&git.LogOptions{From: ref.Hash(), Order: git.LogOrderBSF})
 	handleError("Reading history", err)
 
 	var previousTree *object.Tree
 
 	err = history.ForEach(func(commit *object.Commit) error {
+		if featureIgnoreMerge && len(commit.ParentHashes) > 1 {
+			Debug("Ignoring merge commit %s (%d) parents: %s", commit.Hash.String()[0:9], commit.NumParents(), commit.ParentHashes)
+			return nil
+		}
 		hash := commit.Hash
 
 		if contains(exclusions, hash.String()) {
@@ -171,6 +177,10 @@ func logic() {
 		Info("Reading commit %s", hash)
 
 		pgpObj, verifyErr := commit.Verify(keyring)
+		Debug("Author %s", commit.Author)
+		Debug("Committer %s", commit.Committer)
+		Debug("Signature %s", commit.PGPSignature)
+
 		handleError("Verifying commit", verifyErr)
 		cFp := hex.EncodeToString(pgpObj.PrimaryKey.Fingerprint[:])
 
