@@ -180,7 +180,6 @@ func logic() {
 		Debug("Author %s", commit.Author)
 		Debug("Committer %s", commit.Committer)
 		Debug("Signature %s", commit.PGPSignature)
-		Debug("pgpObj %s %v", pgpObj, pgpObj)
 
 		handleError("Verifying commit", verifyErr)
 		cFp := hex.EncodeToString(pgpObj.PrimaryKey.Fingerprint[:])
