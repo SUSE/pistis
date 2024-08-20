@@ -1,0 +1,7 @@
+[Unit]
+Description=Git repository validation and synchronization
+
+[Service]
+Type=oneshot
+ExecStart=pistis -gitlab https://gitlab.example.com -repository /srv/git-stage
+ExecStartPost=rsync -av /srv/git-stage/ /srv/git-validated
