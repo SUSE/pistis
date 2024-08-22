@@ -1,0 +1,9 @@
+[Unit]
+Description=Git repository monitor
+
+[Path]
+PathChanged=/srv/git-stage/.git/refs/heads/main
+TriggerLimitBurst=50
+
+[Install]
+WantedBy=paths.target
