@@ -29,7 +29,7 @@ Ideally, this should be a clean key ring. If run under a user account already ha
 #### Using GitLab
 
 Alternatively to specifying an existing keyring file, a keyring can be built from PGP keys associated with users on a GitLab server.
-For this, specify `--gitlab` instead of `--keyring`, and maintain a `CODEOWNERS_USERNAMES` file in the repository root, containing mappings from the `CODEOWNERS` email addresses to GitLab usernames.
+For this, specify `--gitlab` instead of `--keyring`, and either maintain a `CODEOWNERS_USERNAMES` file containing mappings from the `CODEOWNERS` email addresses to GitLab usernames in the repository root, or provide a GitLab API token authorized to lookup users with their email address as `GITLAB_TOKEN` in the environment.
 
 ### Example `CODEOWNERS`
 

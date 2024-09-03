@@ -21,8 +21,11 @@ package main
 import (
 	"bufio"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log/slog"
 	"net/http"
 	"os"
@@ -39,14 +42,15 @@ import (
 
 var (
 	keyring            string
+	keyringFile        string
 	directory          string
 	logger             *slog.Logger
 	featureIgnoreMerge bool
+	gitlab             string
+	gitlab_token       string
 )
 
 func main() {
-	var gitlab string
-	var keyringFile string
 	var logLevelStr string
 
 	flag.BoolVar(&featureIgnoreMerge, "ignore-merge", false, "Do not try to validate merge commits")
@@ -59,12 +63,15 @@ func main() {
 
 	logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: convertLogLevel(logLevelStr)}))
 
-	if keyringFile == "" && gitlab != "" {
-		keyring = buildKeyring(directory+"/CODEOWNERS_USERNAMES", gitlab)
-	} else if keyringFile != "" && gitlab == "" {
-		keyring = fileToStr(keyringFile)
-	} else {
+	gitlab_token = os.Getenv("GITLAB_TOKEN")
+
+	if keyringFile == "" && gitlab == "" {
 		Error("Specify -gitlab OR -keyring.")
+		os.Exit(1)
+	}
+
+	if keyringFile == "" && gitlab != "" && gitlab_token == "" {
+		Error("Pass GITLAB_TOKEN or -keyring.")
 		os.Exit(1)
 	}
 
@@ -87,9 +94,9 @@ func getCodeOwnerFingerprints(coFpPath string) map[string]string {
 	return coFpMap
 }
 
-func getCodeOwnerUsernames(coUserPath string) map[string]string {
+func getCodeOwnerUsernames(coUserPath string) (map[string]string, error) {
 	coUserFile, err := os.Open(coUserPath)
-	handleError("Reading users file", err)
+	handleInternalError("Reading users file", err)
 	defer coUserFile.Close()
 	coUserScanner := bufio.NewScanner(coUserFile)
 
@@ -100,7 +107,7 @@ func getCodeOwnerUsernames(coUserPath string) map[string]string {
 		coUserMap[coUserParts[0]] = coUserParts[1]
 	}
 
-	return coUserMap
+	return coUserMap, nil
 }
 
 func getExclusions(exclPath string) []string {
@@ -118,13 +125,28 @@ func getExclusions(exclPath string) []string {
 	return exclusions
 }
 
-func buildKeyring(coUserPath string, gitlab string) string {
+func buildKeyring(coUserPath string, gitlabUserNames []string, gitlab string) string {
+	Debug("buildKeyring()")
+
 	ring, err := crypto.NewKeyRing(nil)
 	handleError("Creating keyring", err)
 
-	for email, username := range getCodeOwnerUsernames(coUserPath) {
+	codeownerUserNames, err := getCodeOwnerUsernames(coUserPath)
+	if err != nil && err != os.ErrNotExist {
+		handleError("Reading users file", err)
+	}
+
+	for _, username := range codeownerUserNames {
+		if contains(gitlabUserNames, username) {
+			Debug("Redundant user entry for %s", username)
+		} else {
+			gitlabUserNames = append(gitlabUserNames, username)
+		}
+	}
+
+	for _, username := range gitlabUserNames {
 		response, err := http.Get(fmt.Sprintf("%s/%s.gpg", gitlab, username))
-		msg := fmt.Sprintf(" for %s (%s)", email, username)
+		msg := fmt.Sprintf(" for %s", username)
 		handleError("Reading key"+msg, err)
 		defer response.Body.Close()
 		handleError("Reading response"+msg, err)
@@ -140,7 +162,81 @@ func buildKeyring(coUserPath string, gitlab string) string {
 	return armoredRing
 }
 
+func getGitLabUsernames(history object.CommitIter) ([]string, error) {
+	Debug("getGitLabUsernames()")
+
+	if gitlab == "" || gitlab_token == "" {
+		Debug("No GitLab present, skipping.")
+		return nil, nil
+	}
+
+	client := &http.Client{}
+
+	var gitlabUserEmails []string
+	var gitlabUserNames []string
+
+	type GitLabUser struct {
+		Username string `json:"username"`
+	}
+
+	err := history.ForEach(func(commit *object.Commit) error {
+		committer := commit.Committer
+		email := committer.Email
+
+		if contains(gitlabUserEmails, email) {
+			return nil
+		}
+
+		gitlabUserEmails = append(gitlabUserEmails, email)
+
+		url := fmt.Sprintf("%s/api/v4/users?search=%s", gitlab, email)
+		Debug(url)
+
+		request, err := http.NewRequest("GET", url, nil)
+		handleError(fmt.Sprintf("Constructing request to %s", url), err)
+
+		request.Header.Set("PRIVATE-TOKEN", gitlab_token)
+
+		response, err := client.Do(request)
+		handleError(fmt.Sprintf("Requesting %s", url), err)
+
+		body, err := ioutil.ReadAll(response.Body)
+		handleError(fmt.Sprintf("Parsing response from %s", url), err)
+
+		if response.StatusCode != http.StatusOK {
+			handleError(fmt.Sprintf("Requesting %s", url), errors.New(response.Status))
+		}
+
+		var FoundUsers []GitLabUser
+
+		jerr := json.Unmarshal(body, &FoundUsers)
+		handleError(fmt.Sprintf("Parsing response from %s as JSON", url), jerr)
+
+		if len(FoundUsers) == 0 {
+			Debug("No username found for %s", email)
+			return nil
+		}
+
+		if len(FoundUsers) > 1 {
+			// TODO: whilst it is unlikely to have more than one user returned for a given email address, it would still be good to handle the scenario better
+			Debug("More than one user found, result might be inaccurate: %s", FoundUsers)
+		}
+
+		username := FoundUsers[0].Username
+		Debug("Found user in GitLab: %s", username)
+		gitlabUserNames = append(gitlabUserNames, username)
+
+		return nil
+
+	})
+	handleError("Parsing commits", err)
+
+	return gitlabUserNames, nil
+}
+
 func logic() {
+	Debug("logic()")
+
 	repository, err := git.PlainOpen(directory)
 	handleError("Opening repository", err)
 
@@ -158,6 +254,20 @@ func logic() {
 	Info("Head is at %s", head)
 
 	history, err := repository.Log(&git.LogOptions{From: ref.Hash(), Order: git.LogOrderBSF})
+	handleError("Reading history", err)
+
+	gitlabUserNames, err := getGitLabUsernames(history)
+	handleError("Getting usernames from GitLab", err)
+
+	if keyringFile != "" || gitlab == "" || gitlab_token == "" {
+		Debug("Using keyring from %s", keyringFile)
+		keyring = fileToStr(keyringFile)
+	} else {
+		keyring = buildKeyring(directory+"/CODEOWNERS_USERNAMES", gitlabUserNames, gitlab)
+	}
+
+	// why is the history empty if consumed a second time?
+	history, err = repository.Log(&git.LogOptions{From: ref.Hash(), Order: git.LogOrderBSF})
 	handleError("Reading history", err)
 
 	var previousTree *object.Tree

@@ -21,7 +21,8 @@ func TestGetCodeOwnerFingerprints(t *testing.T) {
 }
 
 func TestGetCodeOwnerUsernames(t *testing.T) {
-	result := getCodeOwnerUsernames("test_fixtures/CODEOWNERS_USERNAMES")
+	result, err := getCodeOwnerUsernames("test_fixtures/CODEOWNERS_USERNAMES")
+	assert.Nil(t, err)
 
 	assert.NotNil(t, result)
 

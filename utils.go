@@ -53,6 +53,14 @@ func Info(format string, args ...any) {
 	logger.Info(fmt.Sprintf(format, args...))
 }
 
+func handleInternalError(action string, err error) error {
+	if err != nil {
+		Debug("%s failed: %s", action, err)
+	}
+
+	return err
+}
+
 func handleError(action string, err error) {
 	if err != nil {
 		Error("%s failed: %s", action, err)
