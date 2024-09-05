@@ -113,7 +113,7 @@ func buildKeyring(coUserPath string, gitlabUserNames []string, gitlab string) st
 	return armoredRing
 }
 
-func getGitLabUsernames(history object.CommitIter) ([]string, error) {
+func getGitLabUsernames(history object.CommitIter, exclusions []string) ([]string, error) {
 	Debug("getGitLabUsernames()")
 
 	if gitlab == "" || gitlab_token == "" {
@@ -131,6 +131,12 @@ func getGitLabUsernames(history object.CommitIter) ([]string, error) {
 	}
 
 	err := history.ForEach(func(commit *object.Commit) error {
+		hash := commit.Hash.String()
+		if contains(exclusions, hash) {
+			Debug("Returning early at commit %s", hash)
+			return storer.ErrStop
+		}
+
 		committer := commit.Committer
 		email := committer.Email
 
@@ -209,7 +215,7 @@ func logic() {
 	history, err := repository.Log(&git.LogOptions{From: ref.Hash(), Order: git.LogOrderBSF})
 	handleError("Reading history", err)
 
-	gitlabUserNames, err := getGitLabUsernames(history)
+	gitlabUserNames, err := getGitLabUsernames(history, exclusions)
 	handleError("Getting usernames from GitLab", err)
 
 	if keyringFile != "" || gitlab == "" || gitlab_token == "" {
