@@ -19,7 +19,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,7 +28,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/hairyhenderson/go-codeowners"
 
@@ -78,61 +76,14 @@ func main() {
 	logic()
 }
 
-func getCodeOwnerFingerprints(coFpPath string) map[string]string {
-	coFpFile, err := os.Open(coFpPath)
-	handleError("Reading fingerprints file", err)
-	defer coFpFile.Close()
-	coFpScanner := bufio.NewScanner(coFpFile)
-
-	coFpMap := make(map[string]string)
-
-	for coFpScanner.Scan() {
-		coFpParts := strings.Split(coFpScanner.Text(), " ")
-		coFpMap[coFpParts[0]] = coFpParts[1]
-	}
-
-	return coFpMap
-}
-
-func getCodeOwnerUsernames(coUserPath string) (map[string]string, error) {
-	coUserFile, err := os.Open(coUserPath)
-	handleInternalError("Reading users file", err)
-	defer coUserFile.Close()
-	coUserScanner := bufio.NewScanner(coUserFile)
-
-	coUserMap := make(map[string]string)
-
-	for coUserScanner.Scan() {
-		coUserParts := strings.Split(coUserScanner.Text(), " ")
-		coUserMap[coUserParts[0]] = coUserParts[1]
-	}
-
-	return coUserMap, nil
-}
-
-func getExclusions(exclPath string) []string {
-	exclFile, err := os.Open(exclPath)
-	handleError("Reading exclusion file", err)
-	defer exclFile.Close()
-	exclScanner := bufio.NewScanner(exclFile)
-
-	exclusions := make([]string, 0)
-
-	for exclScanner.Scan() {
-		exclusions = append(exclusions, exclScanner.Text())
-	}
-
-	return exclusions
-}
-
 func buildKeyring(coUserPath string, gitlabUserNames []string, gitlab string) string {
 	Debug("buildKeyring()")
 
 	ring, err := crypto.NewKeyRing(nil)
 	handleError("Creating keyring", err)
 
-	codeownerUserNames, err := getCodeOwnerUsernames(coUserPath)
-	if err != nil && err != os.ErrNotExist {
+	codeownerUserNames, err := fileToStrMap(coUserPath)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		handleError("Reading users file", err)
 	}
 
@@ -243,9 +194,11 @@ func logic() {
 	co, err := codeowners.FromFile(directory)
 	handleError("Reading CODEOWNERS", err)
 
-	coFpMap := getCodeOwnerFingerprints(directory + "/CODEOWNERS_FINGERPRINTS")
+	coFpMap, err := fileToStrMap(directory + "/CODEOWNERS_FINGERPRINTS")
+	handleError("Reading fingerprints file", err)
 
-	exclusions := getExclusions(directory + "/TRUSTED_COMMITS")
+	exclusions, err := fileToStrLines(directory + "/TRUSTED_COMMITS")
+	handleError("Reading exclusion file", err)
 
 	ref, err := repository.Head()
 	handleError("Reading HEAD", err)
