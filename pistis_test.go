@@ -7,8 +7,9 @@ import (
 )
 
 func TestGetCodeOwnerFingerprints(t *testing.T) {
-	result := getCodeOwnerFingerprints("test_fixtures/CODEOWNERS_FINGERPRINTS")
+	result, err := fileToStrMap("test_fixtures/CODEOWNERS_FINGERPRINTS")
 
+	assert.Nil(t, err)
 	assert.NotNil(t, result)
 
 	email := "georg.pfuetzenreuter@suse.com"
@@ -21,9 +22,9 @@ func TestGetCodeOwnerFingerprints(t *testing.T) {
 }
 
 func TestGetCodeOwnerUsernames(t *testing.T) {
-	result, err := getCodeOwnerUsernames("test_fixtures/CODEOWNERS_USERNAMES")
-	assert.Nil(t, err)
+	result, err := fileToStrMap("test_fixtures/CODEOWNERS_USERNAMES")
 
+	assert.Nil(t, err)
 	assert.NotNil(t, result)
 
 	email := "georg.pfuetzenreuter@suse.com"
@@ -36,8 +37,9 @@ func TestGetCodeOwnerUsernames(t *testing.T) {
 }
 
 func TestGetExclusions(t *testing.T) {
-	result := getExclusions("test_fixtures/UNTRUSTED_COMMITS")
+	result, err := fileToStrLines("test_fixtures/UNTRUSTED_COMMITS")
 
+	assert.Nil(t, err)
 	assert.NotNil(t, result)
 
 	assert.Contains(t, result, "5ea8af38993138b5164451434b453ad9fd3993bd")
