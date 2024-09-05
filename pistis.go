@@ -270,15 +270,16 @@ func logic() {
 			for _, file := range changedFiles {
 				Info(file)
 				owners := co.Owners(file)
+				foundValidOwner := false
 				for i, owner := range owners {
 					ownerFp, haveOwnerFp := coFpMap[owner]
-					foundValidOwner := false
 					if haveOwnerFp {
 						Info("Owner #%d is %s with fingerprint %s", i, owner, ownerFp)
 						Info("Commit is signed by fingerprint %s", cFp)
 						if cFp == ownerFp {
 							Info("Matches")
 							foundValidOwner = true
+							break
 						}
 
 					} else {
@@ -286,10 +287,11 @@ func logic() {
 						Error("Owner #%d is %s with no fingerprint", i, owner)
 						os.Exit(1)
 					}
-					if !foundValidOwner {
-						Error("File is covered by CODEOWNERS, but commit modifying it was not signed by a valid owner.")
-						os.Exit(1)
-					}
+				}
+
+				if len(owners) > 0 && !foundValidOwner {
+					Error("File is covered by CODEOWNERS, but commit modifying it was not signed by a valid owner.")
+					os.Exit(1)
 				}
 			}
 		}
