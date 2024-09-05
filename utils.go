@@ -19,9 +19,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -72,6 +74,48 @@ func fileToStr(file string) (content string) {
 	contentBytes, readErr := os.ReadFile(file)
 	handleError("Reading file", readErr)
 	return string(contentBytes)
+}
+
+func fileToStrLines(filePath string) ([]string, error) {
+	var lines []string
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		Debug("Reading file %s failed", filePath)
+		return lines, err
+	}
+
+	defer file.Close()
+	fileScanner := bufio.NewScanner(file)
+
+	for fileScanner.Scan() {
+		line := fileScanner.Text()
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		lines = append(lines, line)
+	}
+
+	return lines, nil
+}
+
+func fileToStrMap(filePath string) (map[string]string, error) {
+	lineMap := make(map[string]string)
+
+	lines, err := fileToStrLines(filePath)
+	if err != nil {
+		return lineMap, err
+	}
+
+	for _, line := range lines {
+		lineParts := strings.Fields(line)
+		lineMap[lineParts[0]] = lineParts[1]
+	}
+
+	return lineMap, nil
 }
 
 func getChangeName(change *object.Change) string {
